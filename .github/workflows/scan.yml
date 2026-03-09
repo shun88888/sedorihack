@@ -1,0 +1,26 @@
+name: Keepa Scan
+
+on:
+  schedule:
+    # Every 4 hours (UTC)
+    - cron: '0 */4 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger scan API
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            "${{ secrets.APP_URL }}/api/scan")
+
+          echo "HTTP Status: $response"
+
+          if [ "$response" != "200" ]; then
+            echo "Scan failed with status $response"
+            exit 1
+          fi

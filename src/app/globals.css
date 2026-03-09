@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --background: #050505;
+  --surface: #0a0a0a;
+  --surface-2: #141414;
+  --border: #111111;
+  --border-2: #1a1a1a;
+  --text: #e5e5e5;
+  --text-muted: #555;
+  --text-dim: #444;
+  --text-faint: #333;
+  --green: #22c55e;
+  --red: #ef4444;
+  --blue: #3b82f6;
+  --font-sans: 'Outfit', -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Menlo', monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-green: var(--green);
+  --color-yellow: var(--yellow);
+  --color-red: var(--red);
+  --color-blue: var(--blue);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: var(--font-sans);
+  margin: 0;
+  padding: 0;
+}
+
+.score-green { color: var(--green); }
+.score-yellow { color: var(--yellow); }
+.score-red { color: var(--red); }
+
+.badge-green { border-color: var(--green); color: var(--green); }
+.badge-yellow { border-color: var(--yellow); color: var(--yellow); }
+.badge-red { border-color: var(--red); color: var(--red); }
+
+input, select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 10px 14px;
+  width: 100%;
+  outline: none;
+  font-size: 14px;
+}
+
+input:focus, select:focus {
+  border-color: var(--blue);
+}
+
+button {
+  cursor: pointer;
+}
