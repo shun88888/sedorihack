@@ -21,7 +21,7 @@ export default function LoginPage() {
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError(error.message)
+      setError('ログインに失敗しました。メールアドレスとパスワードを確認してください。')
       setLoading(false)
     } else {
       router.push('/dashboard')
@@ -43,38 +43,6 @@ export default function LoginPage() {
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <h1 style={{ margin: 0, fontSize: 28, fontWeight: 800 }}>SedoriHack</h1>
           <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>アカウントにログイン</p>
-        </div>
-
-        {/* Test account info */}
-        <div style={{
-          background: 'rgba(130,177,255,0.08)',
-          border: '1px solid var(--blue)',
-          borderRadius: 10,
-          padding: '12px 16px',
-          marginBottom: 16,
-          fontSize: 13,
-        }}>
-          <div style={{ color: 'var(--blue)', fontWeight: 700, marginBottom: 6 }}>テストアカウント</div>
-          <div style={{ color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <span>メール: <span style={{ color: 'var(--text)' }}>test@sedorihack.com</span></span>
-            <span>パスワード: <span style={{ color: 'var(--text)' }}>test1234</span></span>
-          </div>
-          <button
-            type="button"
-            onClick={() => { setEmail('test@sedorihack.com'); setPassword('test1234') }}
-            style={{
-              marginTop: 8,
-              padding: '5px 12px',
-              background: 'rgba(130,177,255,0.15)',
-              border: '1px solid var(--blue)',
-              borderRadius: 6,
-              color: 'var(--blue)',
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            自動入力
-          </button>
         </div>
 
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: 32 }}>

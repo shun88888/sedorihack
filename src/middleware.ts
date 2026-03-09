@@ -38,8 +38,8 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Redirect unauthenticated users away from dashboard
-  if (!user && pathname.startsWith('/dashboard')) {
+  // Redirect unauthenticated users away from protected pages
+  if (!user && (pathname.startsWith('/dashboard') || pathname.startsWith('/settings'))) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

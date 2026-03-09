@@ -26,7 +26,7 @@ export default function SignupPage() {
     })
 
     if (error) {
-      setError(error.message)
+      setError('登録に失敗しました。入力内容を確認してもう一度お試しください。')
       setLoading(false)
     } else {
       setDone(true)

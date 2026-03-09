@@ -156,7 +156,7 @@ export default function PriceChart({ data, color = '#22c55e', height = 200 }: Pr
       crosshairMarkerRadius: 4,
       priceFormat: {
         type: 'custom',
-        formatter: (price: number) => `¥${Math.round(price).toLocaleString()}`,
+        formatter: (price: number) => `${Math.round(price).toLocaleString()}`,
       },
     })
 

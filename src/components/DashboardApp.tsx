@@ -89,7 +89,21 @@ const MKT: MktItem[] = [
 ]
 
 const CATS = ['すべて','靴','家電','ゲーム','トレカ']
-const SORTS: [string, string][] = [['score','スコア'],['roi','ROI'],['demand','需要度'],['profit','期待利益']]
+const SORTS_BASE: [string, string][] = [['price','価格'],['roi','ROI'],['demand','需要度'],['profit','期待利益']]
+const SORTS_VOLUME: [string, string][] = [['volume','出来高変化率'],['price','価格'],['demand','需要度'],['profit','期待利益']]
+const SORTS_STOCKOUT: [string, string][] = [['stockout','品薄率'],['price','価格'],['demand','需要度'],['profit','期待利益']]
+
+// BSR履歴から出来高変化率を算出（直近7日平均 vs 直近30日平均）
+// BSRが下がる＝売れてる。改善率 = (avg30 - avg7) / avg30
+function calcVolumeChg(bh: number[]): number {
+  if (bh.length < 7) return 0
+  const recent7 = bh.slice(-7)
+  const recent30 = bh.length >= 30 ? bh.slice(-30) : bh
+  const avg7 = recent7.reduce((a,b)=>a+b,0) / recent7.length
+  const avg30 = recent30.reduce((a,b)=>a+b,0) / recent30.length
+  if (avg30 === 0) return 0
+  return Math.round(((avg30 - avg7) / avg30) * 100)
+}
 
 const NOISE_BG = `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`
 
@@ -223,7 +237,7 @@ function useW() {
 }
 
 // ─── ProductRow ───────────────────────────────────────────────────────────────
-function ProductRow({ p, rank, onClick, active, delay = 0 }: { p: Product; rank: number; onClick: (p: Product) => void; active: boolean; delay?: number }) {
+function ProductRow({ p, rank, onClick, active, delay = 0, mode = 'down' }: { p: Product; rank: number; onClick: (p: Product) => void; active: boolean; delay?: number; mode?: 'down'|'up'|'volume'|'stockout'|'home' }) {
   const down = p.chg < 0
   return (
     <F delay={delay}>
@@ -235,14 +249,36 @@ function ProductRow({ p, rank, onClick, active, delay = 0 }: { p: Product; rank:
         <div style={{ flex:1, minWidth:0 }}>
           <p style={{ fontSize:13, fontWeight:700, color:'#ccc', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontFamily:S, margin:0 }}>{p.name}</p>
           <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
-            <span style={{ fontSize:10, fontWeight:700, fontFamily:M, color: down ? '#ef4444' : '#22c55e', background: down ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', padding:'1px 5px', borderRadius:3 }}>{down ? '▼' : '▲'}{Math.abs(p.chg)}%</span>
+            {(mode==='down'||mode==='up'||mode==='home') && (
+              <span style={{ fontSize:10, fontWeight:700, fontFamily:M, color: down ? '#ef4444' : '#22c55e', background: down ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', padding:'1px 5px', borderRadius:3 }}>{down ? '▼' : '▲'}{Math.abs(p.chg)}%</span>
+            )}
+            {mode==='volume' && (() => { const vc = calcVolumeChg(p.bh); const up = vc>0; return (
+              <span style={{ fontSize:10, fontWeight:700, fontFamily:M, color: up ? '#22c55e' : '#ef4444', background: up ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding:'1px 5px', borderRadius:3 }}>{up ? '▲' : '▼'}{Math.abs(vc)}% BSR改善</span>
+            )})()}
+            {mode==='stockout' && (() => { const high = p.oos>=50; return (
+              <span style={{ fontSize:10, fontWeight:700, fontFamily:M, color: high ? '#ef4444' : '#22c55e', background: high ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', padding:'1px 5px', borderRadius:3 }}>品薄率 {p.oos}%</span>
+            )})()}
             <span style={{ fontSize:10, color:'#444' }}>{p.cat}</span>
           </div>
         </div>
-        <MiniPriceChart product={p} color={down ? '#ef4444' : '#22c55e'} />
+        <MiniPriceChart product={p} color={mode==='down' ? '#ef4444' : mode==='up' ? '#22c55e' : mode==='home' ? (down ? '#ef4444' : '#22c55e') : mode==='volume' ? (calcVolumeChg(p.bh)>0 ? '#22c55e' : '#ef4444') : (p.oos>=50 ? '#ef4444' : '#22c55e')} />
         <div style={{ textAlign:'right', minWidth:56 }}>
-          <p style={{ fontSize:13, fontWeight:700, fontFamily:M, color:'#22c55e', margin:0 }}>{p.exp.profit.toLocaleString()}</p>
-          <p style={{ fontSize:10, fontFamily:M, color:'#555', margin:0 }}>{p.roi}%</p>
+          {(mode==='down'||mode==='up') && <>
+            <p style={{ fontSize:13, fontWeight:700, fontFamily:M, color:'#ccc', margin:0 }}>{p.cur.toLocaleString()}</p>
+            <p style={{ fontSize:10, fontFamily:M, color:'#555', margin:0 }}>{p.chg>0 ? '+' : ''}{p.chg}%</p>
+          </>}
+          {mode==='home' && <>
+            <p style={{ fontSize:13, fontWeight:700, fontFamily:M, color: down ? '#ef4444' : '#22c55e', margin:0 }}>{p.cur.toLocaleString()}</p>
+            <p style={{ fontSize:10, fontFamily:M, color: down ? '#ef4444' : '#22c55e', margin:0 }}>{p.chg>0 ? '+' : ''}{p.chg}%</p>
+          </>}
+          {mode==='volume' && (() => { const vc = calcVolumeChg(p.bh); return <>
+            <p style={{ fontSize:13, fontWeight:700, fontFamily:M, color:'#ccc', margin:0 }}>{vc>0 ? '+' : ''}{vc}%</p>
+            <p style={{ fontSize:10, fontFamily:M, color:'#555', margin:0 }}>{p.sales}件/月</p>
+          </>})()}
+          {mode==='stockout' && <>
+            <p style={{ fontSize:13, fontWeight:700, fontFamily:M, color:'#ccc', margin:0 }}>{p.oos}%</p>
+            <p style={{ fontSize:10, fontFamily:M, color:'#555', margin:0 }}>出品者{p.sellers}人</p>
+          </>}
         </div>
       </div>
     </F>
@@ -297,7 +333,7 @@ function NewsTicker() {
 }
 
 // ─── HomeList ─────────────────────────────────────────────────────────────────
-function HomeList({ onProduct, activeId }: { onProduct: (p: Product) => void; activeId: string | null }) {
+function HomeList({ onProduct, activeId, onSwitchTab }: { onProduct: (p: Product) => void; activeId: string | null; onSwitchTab: (t: Tab) => void }) {
   return (
     <div>
       <div style={{ padding:'14px 16px 8px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -331,24 +367,24 @@ function HomeList({ onProduct, activeId }: { onProduct: (p: Product) => void; ac
       </div>
 
       {/* 急落ランキング */}
-      <div style={{ padding:'0 16px 6px', display:'flex', justifyContent:'space-between' }}>
+      <div style={{ padding:'0 16px 6px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <p style={{ fontSize:10, fontFamily:M, color:'#333', letterSpacing:1, margin:0 }}>急落ランキング</p>
-        <span style={{ fontSize:10, color:'#333', fontFamily:M }}>{PRODUCTS.filter(p=>p.chg<0).length}件</span>
+        <button onClick={() => onSwitchTab('ranking')} style={{ background:'none', border:'none', color:'#555', fontSize:10, fontFamily:M, cursor:'pointer', padding:0 }}>more →</button>
       </div>
       <div style={{ borderTop:'1px solid #111' }}>
         {PRODUCTS.filter(p=>p.chg<0).sort((a,b)=>a.chg-b.chg).slice(0,5).map((p,i) => (
-          <ProductRow key={p.id} p={p} rank={i+1} onClick={onProduct} active={activeId===p.id} delay={0.05+i*0.03} />
+          <ProductRow key={p.id} p={p} rank={i+1} onClick={onProduct} active={activeId===p.id} delay={0.05+i*0.03} mode="home" />
         ))}
       </div>
 
       {/* 急上昇ランキング */}
-      <div style={{ padding:'12px 16px 6px', display:'flex', justifyContent:'space-between' }}>
+      <div style={{ padding:'12px 16px 6px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <p style={{ fontSize:10, fontFamily:M, color:'#333', letterSpacing:1, margin:0 }}>急上昇ランキング</p>
-        <span style={{ fontSize:10, color:'#333', fontFamily:M }}>{PRODUCTS.filter(p=>p.chg>0).length}件</span>
+        <button onClick={() => onSwitchTab('ranking')} style={{ background:'none', border:'none', color:'#555', fontSize:10, fontFamily:M, cursor:'pointer', padding:0 }}>more →</button>
       </div>
       <div style={{ borderTop:'1px solid #111' }}>
         {PRODUCTS.filter(p=>p.chg>0).sort((a,b)=>b.chg-a.chg).slice(0,5).map((p,i) => (
-          <ProductRow key={p.id} p={p} rank={i+1} onClick={onProduct} active={activeId===p.id} delay={0.05+i*0.03} />
+          <ProductRow key={p.id} p={p} rank={i+1} onClick={onProduct} active={activeId===p.id} delay={0.05+i*0.03} mode="home" />
         ))}
         {PRODUCTS.filter(p=>p.chg>0).length === 0 && (
           <p style={{ textAlign:'center', padding:20, color:'#333', fontSize:12 }}>該当なし</p>
@@ -360,17 +396,23 @@ function HomeList({ onProduct, activeId }: { onProduct: (p: Product) => void; ac
 
 // ─── RankingList ──────────────────────────────────────────────────────────────
 function RankingList({ onProduct, activeId }: { onProduct: (p: Product) => void; activeId: string | null }) {
-  const [mode, setMode] = useState<'down'|'up'>('down')
+  const [mode, setMode] = useState<'down'|'up'|'volume'|'stockout'>('down')
   const [cat, setCat] = useState('すべて')
-  const [sort, setSort] = useState('score')
+  const [sort, setSort] = useState('price')
 
   const filtered = useMemo(() => {
-    let items = mode==='down' ? PRODUCTS.filter(p=>p.chg<0) : PRODUCTS.filter(p=>p.chg>0)
+    let items: Product[]
+    if (mode==='down') items = PRODUCTS.filter(p=>p.chg<0)
+    else if (mode==='up') items = PRODUCTS.filter(p=>p.chg>0)
+    else if (mode==='volume') items = [...PRODUCTS]
+    else items = [...PRODUCTS]
     if (cat!=='すべて') items = items.filter(p=>p.cat===cat)
     return [...items].sort((a,b) =>
-      sort==='score' ? b.score-a.score :
+      sort==='price' ? Math.abs(b.chg)-Math.abs(a.chg) :
       sort==='roi' ? b.roi-a.roi :
       sort==='demand' ? b.demand-a.demand :
+      sort==='volume' ? calcVolumeChg(b.bh)-calcVolumeChg(a.bh) :
+      sort==='stockout' ? b.oos-a.oos :
       b.exp.profit-a.exp.profit
     )
   }, [mode, cat, sort])
@@ -382,9 +424,9 @@ function RankingList({ onProduct, activeId }: { onProduct: (p: Product) => void;
       </div>
 
       <div style={{ display:'flex', margin:'0 16px 8px', border:'1px solid #1a1a1a', borderRadius:6, overflow:'hidden' }}>
-        {([['down','急落'],['up','急騰']] as [string,string][]).map(([k,l]) => (
-          <button key={k} onClick={()=>setMode(k as 'down'|'up')} style={{ flex:1, padding:'7px 0', background: mode===k ? (k==='down' ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)') : 'transparent', border:'none', color: mode===k ? (k==='down' ? '#ef4444' : '#22c55e') : '#444', fontSize:12, fontWeight:700, cursor:'pointer', fontFamily:S, borderRight: k==='down' ? '1px solid #1a1a1a' : 'none' }}>
-            {k==='down' ? '▼' : '▲'} {l}
+        {([['down','急落','▼'],['up','急騰','▲'],['volume','出来高急増','◆'],['stockout','品薄','◇']] as [string,string,string][]).map(([k,l,icon],i,arr) => (
+          <button key={k} onClick={()=>{setMode(k as 'down'|'up'|'volume'|'stockout'); setSort(k==='volume'?'volume':k==='stockout'?'stockout':'price')}} style={{ flex:1, padding:'7px 0', background: mode===k ? 'rgba(255,255,255,0.08)' : 'transparent', border:'none', color: mode===k ? '#e5e5e5' : '#444', fontSize:11, fontWeight:700, cursor:'pointer', fontFamily:S, borderRight: i<arr.length-1 ? '1px solid #1a1a1a' : 'none' }}>
+            {icon} {l}
           </button>
         ))}
       </div>
@@ -396,13 +438,13 @@ function RankingList({ onProduct, activeId }: { onProduct: (p: Product) => void;
       </div>
 
       <div style={{ display:'flex', gap:3, padding:'0 16px 6px' }}>
-        {SORTS.map(([k,l]) => (
+        {(mode==='volume' ? SORTS_VOLUME : mode==='stockout' ? SORTS_STOCKOUT : SORTS_BASE).map(([k,l]) => (
           <button key={k} onClick={()=>setSort(k)} style={{ padding:'2px 7px', borderRadius:3, border:'none', background: sort===k ? 'rgba(34,197,94,0.1)' : 'transparent', color: sort===k ? '#22c55e' : '#444', fontSize:10, fontWeight:600, cursor:'pointer', fontFamily:M }}>{l}</button>
         ))}
       </div>
 
       <div style={{ borderTop:'1px solid #111' }}>
-        {filtered.map((p,i) => <ProductRow key={p.id} p={p} rank={i+1} onClick={onProduct} active={activeId===p.id} delay={i*0.02} />)}
+        {filtered.map((p,i) => <ProductRow key={p.id} p={p} rank={i+1} onClick={onProduct} active={activeId===p.id} delay={i*0.02} mode={mode} />)}
         {filtered.length===0 && <p style={{ textAlign:'center', padding:40, color:'#333', fontSize:13 }}>該当なし</p>}
       </div>
     </div>
@@ -717,7 +759,8 @@ function DetailPanel({ p, saved, onToggle, onBack, mob, portfolios, onUpdatePort
             ['スコア', `${p.score}`, p.score>=70 ? '#22c55e' : p.score>=40 ? '#e5e5e5' : '#ef4444'],
             ['需要度', `${p.demand}%`, p.demand>=70 ? '#22c55e' : p.demand>=40 ? '#e5e5e5' : '#ef4444'],
             ['ROI', `${p.roi}%`, p.roi>=30 ? '#22c55e' : p.roi>=15 ? '#e5e5e5' : '#ef4444'],
-            ['月間販売数', `${p.sales}個`, '#ccc'],
+            ['出来高変化率', `${calcVolumeChg(p.bh)>0 ? '+' : ''}${calcVolumeChg(p.bh)}%`, calcVolumeChg(p.bh)>=30 ? '#22c55e' : calcVolumeChg(p.bh)>=0 ? '#e5e5e5' : '#ef4444'],
+            ['月間BSRドロップ数', `${p.sales}回`, '#ccc'],
             ['出品者数', `${p.sellers}人`, '#ccc'],
             ['在庫切れ率', `${p.oos}%`, p.oos>=50 ? '#22c55e' : '#ccc'],
           ] as [string,string,string][]).map(([l,v,c]) => (
@@ -826,7 +869,7 @@ export default function DashboardApp() {
       ) : (
         <>
           <div style={{ paddingBottom:70, position:'relative', zIndex:1 }}>
-            {tab==='home' && <HomeList onProduct={setDetail} activeId={null} />}
+            {tab==='home' && <HomeList onProduct={setDetail} activeId={null} onSwitchTab={setTab} />}
             {tab==='ranking' && <RankingList onProduct={setDetail} activeId={null} />}
             {tab==='news' && <NewsList />}
             {tab==='saved' && <SavedList portfolios={portfolios} onUpdate={setPortfolios} onProduct={setDetail} activeId={null} />}
@@ -843,7 +886,7 @@ export default function DashboardApp() {
       <div style={{ position:'fixed', inset:0, opacity:0.02, pointerEvents:'none', backgroundImage:NOISE_BG }} />
       <Sidebar tab={tab} setTab={setTab} />
       <div style={{ width: w>=1200 ? 420 : 360, minWidth:320, borderRight:'1px solid #111', overflowY:'auto', position:'relative', zIndex:1, flexShrink:0 }}>
-        {tab==='home' && <HomeList onProduct={setDetail} activeId={detail?.id ?? null} />}
+        {tab==='home' && <HomeList onProduct={setDetail} activeId={detail?.id ?? null} onSwitchTab={setTab} />}
         {tab==='ranking' && <RankingList onProduct={setDetail} activeId={detail?.id ?? null} />}
         {tab==='news' && <NewsList />}
         {tab==='saved' && <SavedList portfolios={portfolios} onUpdate={setPortfolios} onProduct={setDetail} activeId={detail?.id ?? null} />}

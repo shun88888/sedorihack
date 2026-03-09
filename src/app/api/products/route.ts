@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query as { data: ScoredItem[] | null; error: unknown }
 
   if (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 })
+    return NextResponse.json({ error: 'データの取得に失敗しました' }, { status: 500 })
   }
 
   return NextResponse.json({ products: data, isPro })
